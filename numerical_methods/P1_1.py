@@ -52,7 +52,7 @@ b = np.array([29, 42, 11, 75], dtype=np.float64)
 L, U = lu_decomposition(A)
 
 solution = solve_lu(L, U, b)
-print("Решение системы (наше решение):", np.round(solution, 6))
+print("Решение системы:", np.round(solution, 6))
 
 numpy_solution = np.linalg.solve(A, b)
 print("Решение системы (numpy.linalg.solve):", np.round(numpy_solution, 6))
