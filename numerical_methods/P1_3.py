@@ -9,7 +9,7 @@ def is_diagonally_dominant(A):
             return False
     return True
 
-# Метод простых итераций (метод Якоби)
+# Метод простых итераций
 def jacobi_method(A, b, x0, tol, max_iterations):
     if not is_diagonally_dominant(A):
         raise ValueError("Матрица A не является диагонально доминирующей. Метод Якоби может не сойтись.")
@@ -21,11 +21,12 @@ def jacobi_method(A, b, x0, tol, max_iterations):
         x_new = np.zeros_like(x)  # Новое приближение
         for i in range(n):
             # Вычисляем сумму, исключая диагональный элемент
+            # (произведение матрицы А и текущего вектора х)
             s = sum(A[i][j] * x[j] for j in range(n) if j != i)
             # Вычисляем новое значение x[i]
             x_new[i] = (b[i] - s) / A[i][i]
 
-        # Проверяем условие сходимости
+        # Проверяем условие выхода
         if np.linalg.norm(x_new - x, ord=np.inf) < tol:
             return x_new, k + 1
         x = x_new
@@ -43,14 +44,14 @@ def gauss_seidel_method(A, b, x0, tol, max_iterations):
     for k in range(max_iterations):
         x_old = x.copy()  # Сохраняем предыдущее приближение
         for i in range(n):
-            # Вычисляем сумму для элементов до i-го
+            # Вычисляем сумму проивзедений для уже обновленных значений
             s1 = sum(A[i][j] * x[j] for j in range(i))
-            # Вычисляем сумму для элементов после i-го
+            # Вычисляем сумму произведений элементов матрицы А на "старые" значения х
             s2 = sum(A[i][j] * x_old[j] for j in range(i + 1, n))
             # Вычисляем новое значение x[i]
             x[i] = (b[i] - s1 - s2) / A[i][i]
 
-        # Проверяем условие сходимости
+        # Проверяем условие выхода
         if np.linalg.norm(x - x_old, ord=np.inf) < tol:
             return x, k + 1
 
@@ -70,8 +71,8 @@ max_iterations = 1000
 
 print("Eps: ", tol)
 jacobi_solution, jacobi_iterations = jacobi_method(A, b, x0, tol, max_iterations)
-print("Решение методом Якоби:",  np.round(jacobi_solution, 6))
-print("Количество итераций методом Якоби:", jacobi_iterations)
+print("Решение методом простых итераций:",  np.round(jacobi_solution, 6))
+print("Количество итераций этим методом:", jacobi_iterations)
 
 gs_solution, gs_iterations = gauss_seidel_method(A, b, x0, tol, max_iterations)
 print("Решение методом Гаусса-Зейделя:", np.round(gs_solution, 6))
