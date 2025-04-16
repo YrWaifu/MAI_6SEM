@@ -1,183 +1,105 @@
-import numpy as np  # Импортируем библиотеку NumPy для численных вычислений
-import matplotlib.pyplot as plt  # Импортируем библиотеку Matplotlib для построения графиков
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.optimize import fsolve
 
-# Определение системы нелинейных уравнений
-def f1(x1, x2, a):
-    """
-    Первое уравнение системы: x1^2 + x2^2 - a^2 = 0.
-    :param x1: Значение переменной x1.
-    :param x2: Значение переменной x2.
-    :param a: Параметр системы.
-    :return: Значение левой части первого уравнения.
-    """
+# Параметры
+a = 4
+tolerance = 1e-6
+max_iterations = 1000
+
+# Система уравнений
+def f1(x1, x2):
     return x1**2 + x2**2 - a**2
 
-def f2(x1, x2, a):
-    """
-    Второе уравнение системы: x1 - exp(x2) + a = 0.
-    :param x1: Значение переменной x1.
-    :param x2: Значение переменной x2.
-    :param a: Параметр системы.
-    :return: Значение левой части второго уравнения.
-    """
+def f2(x1, x2):
     return x1 - np.exp(x2) + a
 
-# Реализация метода простой итерации
-def simple_iteration(phi1, phi2, x0, tol, max_iter):
-    """
-    Метод простой итерации для решения системы нелинейных уравнений.
-    :param phi1: Функция преобразования для x1 (x1 = phi1(x1, x2)).
-    :param phi2: Функция преобразования для x2 (x2 = phi2(x1, x2)).
-    :param x0: Начальное приближение (x1, x2).
-    :param tol: Требуемая точность вычислений.
-    :param max_iter: Максимальное количество итераций.
-    :return: Корень системы (x1, x2) и массив погрешностей на каждой итерации.
-    """
-    x1, x2 = x0  # Начальные значения переменных
-    errors = []  # Список для хранения погрешностей на каждой итерации
-    for i in range(max_iter):  # Цикл по максимальному числу итераций
-        x1_new = phi1(x1, x2)  # Вычисляем новое значение x1 через функцию phi1
-        x2_new = phi2(x1, x2)  # Вычисляем новое значение x2 через функцию phi2
-        error = np.sqrt((x1_new - x1)**2 + (x2_new - x2)**2)  # Погрешность как евклидова норма разности
-        errors.append(error)  # Добавляем погрешность в список
-        if error < tol:  # Если погрешность меньше заданной точности
-            return (x1_new, x2_new), errors  # Возвращаем найденный корень и массив погрешностей
-        x1, x2 = x1_new, x2_new  # Обновляем значения переменных для следующей итерации
-    return (x1, x2), errors  # Возвращаем последние значения, если достигнуто max_iter
+# Якобиан системы
+def jacobian(x1, x2):
+    return np.array([[2*x1, 2*x2],
+                     [1, -np.exp(x2)]])
 
-# Функции phi для метода простой итерации
-def phi1(x1, x2, a):
-    """
-    Преобразование первого уравнения к виду x1 = phi1(x1, x2).
-    :param x1: Значение переменной x1.
-    :param x2: Значение переменной x2.
-    :param a: Параметр системы.
-    :return: Значение x1 из преобразованного уравнения.
-    """
-    return np.sqrt(a**2 - x2**2)  # x1 = sqrt(a^2 - x2^2)
+# Метод простой итерации
+def simple_iteration(x1_0, x2_0, tolerance, max_iterations):
+    x1, x2 = x1_0, x2_0
+    errors = []
+    for iteration in range(max_iterations):
+        x1_new = np.sqrt(a**2 - x2**2)
+        x2_new = np.log(x1 + a)
+        error = np.sqrt((x1_new - x1)**2 + (x2_new - x2)**2)
+        errors.append(error)
+        if error < tolerance:
+            break
+        x1, x2 = x1_new, x2_new
+    return x1, x2, errors
 
-def phi2(x1, x2, a):
-    """
-    Преобразование второго уравнения к виду x2 = phi2(x1, x2).
-    :param x1: Значение переменной x1.
-    :param x2: Значение переменной x2.
-    :param a: Параметр системы.
-    :return: Значение x2 из преобразованного уравнения.
-    """
-    return np.log(x1 + a)  # x2 = log(x1 + a)
+# Метод Ньютона
+def newton_method(x1_0, x2_0, tolerance, max_iterations):
+    x = np.array([x1_0, x2_0])
+    errors = []
+    for iteration in range(max_iterations):
+        J = jacobian(x[0], x[1])
+        F = np.array([f1(x[0], x[1]), f2(x[0], x[1])])
+        delta_x = np.linalg.solve(J, -F)
+        x_new = x + delta_x
+        error = np.linalg.norm(delta_x)
+        errors.append(error)
+        if error < tolerance:
+            break
+        x = x_new
+    return x[0], x[1], errors
 
-# Реализация метода Ньютона
-def newton_method(f1, f2, df1_dx1, df1_dx2, df2_dx1, df2_dx2, x0, tol, max_iter):
-    """
-    Метод Ньютона для решения системы нелинейных уравнений.
-    :param f1: Первая функция системы.
-    :param f2: Вторая функция системы.
-    :param df1_dx1: Частная производная f1 по x1.
-    :param df1_dx2: Частная производная f1 по x2.
-    :param df2_dx1: Частная производная f2 по x1.
-    :param df2_dx2: Частная производная f2 по x2.
-    :param x0: Начальное приближение (x1, x2).
-    :param tol: Требуемая точность вычислений.
-    :param max_iter: Максимальное количество итераций.
-    :return: Корень системы (x1, x2) и массив погрешностей на каждой итерации.
-    """
-    x1, x2 = x0  # Начальные значения переменных
-    errors = []  # Список для хранения погрешностей на каждой итерации
-    for i in range(max_iter):  # Цикл по максимальному числу итераций
-        # Вычисление значений функций в текущей точке
-        F1 = f1(x1, x2, a)  # Значение первой функции
-        F2 = f2(x1, x2, a)  # Значение второй функции
+# Графическое определение начального приближения
+x1_vals = np.linspace(-5, 5, 400)
+x2_vals = np.linspace(-5, 5, 400)
+X1, X2 = np.meshgrid(x1_vals, x2_vals)
+F1 = X1**2 + X2**2 - a**2
+F2 = X1 - np.exp(X2) + a
 
-        # Вычисление элементов матрицы Якоби
-        J11 = df1_dx1(x1, x2)  # ∂f1/∂x1
-        J12 = df1_dx2(x1, x2)  # ∂f1/∂x2
-        J21 = df2_dx1(x1, x2)  # ∂f2/∂x1
-        J22 = df2_dx2(x1, x2)  # ∂f2/∂x2
+plt.contour(X1, X2, F1, levels=[0], colors='r')
+plt.contour(X1, X2, F2, levels=[0], colors='b')
+plt.xlabel('x1')
+plt.ylabel('x2')
+plt.title('Графическое определение начального приближения')
+plt.grid()
+plt.show()
 
-        # Вычисление определителя матрицы Якоби
-        det_J = J11 * J22 - J12 * J21  # det(J) = J11 * J22 - J12 * J21
-        if det_J == 0:  # Если определитель равен нулю, метод Ньютона не применим
-            raise ValueError("Определитель матрицы Якоби равен нулю.")
+# Начальное приближение (по графику)
+x1_0, x2_0 = 3, 1
 
-        # Вычисление поправок dx1 и dx2 через формулы метода Ньютона
-        dx1 = (J22 * (-F1) - J12 * (-F2)) / det_J  # dx1 = (J22*(-F1) - J12*(-F2)) / det(J)
-        dx2 = (J11 * (-F2) - J21 * (-F1)) / det_J  # dx2 = (J11*(-F2) - J21*(-F1)) / det(J)
+# Решение методом простой итерации
+x1_si, x2_si, errors_si = simple_iteration(x1_0, x2_0, tolerance, max_iterations)
+print(f"Решение методом простой итерации: x1 = {x1_si}, x2 = {x2_si}")
 
-        # Обновление значений переменных
-        x1_new = x1 + dx1  # x1_new = x1 + dx1
-        x2_new = x2 + dx2  # x2_new = x2 + dx2
+# Решение методом Ньютона
+x1_nm, x2_nm, errors_nm = newton_method(x1_0, x2_0, tolerance, max_iterations)
+print(f"Решение методом Ньютона: x1 = {x1_nm}, x2 = {x2_nm}")
 
-        # Вычисление погрешности как евклидовой нормы поправок
-        error = np.sqrt(dx1**2 + dx2**2)  # error = sqrt(dx1^2 + dx2^2)
-        errors.append(error)  # Добавляем погрешность в список
-        if error < tol:  # Если погрешность меньше заданной точности
-            return (x1_new, x2_new), errors  # Возвращаем найденный корень и массив погрешностей
-        x1, x2 = x1_new, x2_new  # Обновляем значения переменных для следующей итерации
-    return (x1, x2), errors  # Возвращаем последние значения, если достигнуто max_iter
+# Решение с использованием fsolve из scipy
+def system(vars):
+    x1, x2 = vars
+    return [f1(x1, x2), f2(x1, x2)]
 
-# Частные производные для метода Ньютона
-def df1_dx1(x1, x2):
-    """
-    Частная производная первой функции по x1: ∂f1/∂x1 = 2*x1.
-    """
-    return 2 * x1
+solution = fsolve(system, (x1_0, x2_0))
+print(f"Решение с использованием fsolve: x1 = {solution[0]}, x2 = {solution[1]}")
 
-def df1_dx2(x1, x2):
-    """
-    Частная производная первой функции по x2: ∂f1/∂x2 = 2*x2.
-    """
-    return 2 * x2
+# Анализ зависимости погрешности от количества итераций
+plt.figure(figsize=(12, 6))
+plt.subplot(1, 2, 1)
+plt.plot(errors_si, label='Simple Iteration')
+plt.xlabel('Iteration')
+plt.ylabel('Error')
+plt.title('Simple Iteration Error')
+plt.grid()
+plt.legend()
 
-def df2_dx1(x1, x2):
-    """
-    Частная производная второй функции по x1: ∂f2/∂x1 = 1.
-    """
-    return 1
+plt.subplot(1, 2, 2)
+plt.plot(errors_nm, label='Newton Method', color='orange')
+plt.xlabel('Iteration')
+plt.ylabel('Error')
+plt.title('Newton Method Error')
+plt.grid()
+plt.legend()
 
-def df2_dx2(x1, x2):
-    """
-    Частная производная второй функции по x2: ∂f2/∂x2 = -exp(x2).
-    """
-    return -np.exp(x2)
-
-# Параметры системы
-a = 4  # Параметр системы
-tolerance = 1e-6  # Требуемая точность вычислений
-max_iterations = 100  # Максимальное количество итераций
-
-# Начальное приближение (определяется графически или аналитически)
-x0 = (3, 2)  # Начальное приближение (x1, x2)
-
-# Решение системы методом простой итерации
-root_simple, errors_simple = simple_iteration(
-    lambda x1, x2: phi1(x1, x2, a),  # Функция phi1 для x1
-    lambda x1, x2: phi2(x1, x2, a),  # Функция phi2 для x2
-    x0, tolerance, max_iterations  # Параметры метода
-)
-
-# Решение системы методом Ньютона
-root_newton, errors_newton = newton_method(
-    f1, f2, df1_dx1, df1_dx2, df2_dx1, df2_dx2,  # Функции системы и их производные
-    x0, tolerance, max_iterations  # Параметры метода
-)
-
-# Вывод результатов
-print("Метод простой итерации:")
-print(f"  Корень: x1 = {root_simple[0]:.6f}, x2 = {root_simple[1]:.6f}")  # Вывод корня с 6 знаками после запятой
-print(f"  Количество итераций: {len(errors_simple)}\n")  # Вывод количества итераций
-
-print("Метод Ньютона:")
-print(f"  Корень: x1 = {root_newton[0]:.6f}, x2 = {root_newton[1]:.6f}")  # Вывод корня с 6 знаками после запятой
-print(f"  Количество итераций: {len(errors_newton)}")  # Вывод количества итераций
-
-# График зависимости погрешности от числа итераций
-plt.figure(figsize=(10, 6))  # Создание фигуры с заданным размером
-plt.plot(errors_simple, label="Метод простой итерации", marker='o')  # График погрешностей метода простой итерации
-plt.plot(errors_newton, label="Метод Ньютона", marker='x')  # График погрешностей метода Ньютона
-plt.yscale('log')  # Логарифмическая шкала для оси Y (погрешности)
-plt.xlabel("Номер итерации")  # Подпись оси X
-plt.ylabel("Погрешность")  # Подпись оси Y
-plt.title("Зависимость погрешности от числа итераций")  # Заголовок графика
-plt.legend()  # Добавление легенды
-plt.grid()  # Добавление сетки
-plt.show()  # Отображение графика
+plt.tight_layout()
+plt.show()
